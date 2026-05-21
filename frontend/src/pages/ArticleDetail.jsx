@@ -66,7 +66,7 @@ export default function ArticleDetail({ item, user, onBack, onLogout }) {
       }}>
         <div>
           <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-            <img src="/Nubesb1.svg" alt="SAP" style={{ width: '120px' }} />
+            <img src="/Nubesb1.png" alt="SAP" style={{ width: '120px' }} />
           </div>
           <button
             onClick={onBack}

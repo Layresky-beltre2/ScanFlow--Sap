@@ -9,6 +9,9 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [view, setView] = useState('dashboard');
+  const [darkMode, setDarkMode] = useState(
+    localStorage.getItem('darkMode') === 'true'
+  );
 
   useEffect(() => {
     const userName = sessionStorage.getItem('userName');
@@ -18,6 +21,12 @@ export default function App() {
       setIsLoggedIn(true);
     }
   }, []);
+
+  const toggleDark = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    localStorage.setItem('darkMode', next);
+  };
 
   const handleLogin = (userData) => {
     setUser(userData);
@@ -33,7 +42,7 @@ export default function App() {
   };
 
   if (!isLoggedIn) {
-    return <Login onLogin={handleLogin} />;
+    return <Login onLogin={handleLogin} darkMode={darkMode} toggleDark={toggleDark} />;
   }
 
   if (view === 'detail' && selectedItem) {
@@ -43,6 +52,8 @@ export default function App() {
         user={user}
         onBack={() => setView('dashboard')}
         onLogout={handleLogout}
+        darkMode={darkMode}
+        toggleDark={toggleDark}
       />
     );
   }
@@ -55,6 +66,8 @@ export default function App() {
         setSelectedItem(item);
         setView('detail');
       }}
+      darkMode={darkMode}
+      toggleDark={toggleDark}
     />
   );
 }

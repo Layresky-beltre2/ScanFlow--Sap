@@ -1,12 +1,8 @@
 const API_URL = 'http://localhost:3001/api';
 
-// LOGIN - Envía credenciales a SAP
+// LOGIN
 export async function login(credentials) {
-  console.log('========================================');
-  console.log('📡 LOGIN DESDE FRONTEND');
-  console.log('📍 Credenciales:', { ...credentials, Password: '***' });
-  
-  const response = await fetch(`${API_URL}/Login`, {
+  const response = await fetch(`${API_URL}/b1s/v2/Login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -18,18 +14,16 @@ export async function login(credentials) {
       Password: credentials.Password
     })
   });
-  
-  console.log('📍 Response status:', response.status);
-  
+
   if (!response.ok) {
-    const errorText = await response.text();
-    console.log('❌ Error response:', errorText);
-    throw new Error(`Error ${response.status}: ${errorText}`);
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err?.error?.message?.value || 'Credenciales incorrectas');
   }
-  
+
   const data = await response.json();
-  console.log('✅ Login exitoso:', data);
-  console.log('========================================');
+  sessionStorage.setItem('sapUrl', credentials.sapUrl);
+  sessionStorage.setItem('userName', credentials.UserName);
+  sessionStorage.setItem('companyDB', credentials.CompanyDB);
   return data;
 }
 
@@ -37,8 +31,7 @@ export async function login(credentials) {
 export async function logout() {
   const sapUrl = sessionStorage.getItem('sapUrl');
   if (!sapUrl) return;
-  
-  await fetch(`${API_URL}/Logout`, {
+  await fetch(`${API_URL}/b1s/v2/Logout`, {
     method: 'POST',
     headers: { 'x-sap-url': sapUrl }
   });
@@ -46,51 +39,88 @@ export async function logout() {
 }
 
 // LISTAR ARTÍCULOS
-export async function getItems(search = '') {
+export async function getItems({ search = '', page = 0, pageSize = 20 } = {}) {
   const sapUrl = sessionStorage.getItem('sapUrl');
-  let filter = `InventoryItem eq 'tYES'`;
-  
-  if (search) {
-    filter += ` and (contains(ItemCode,'${search}') or contains(ItemName,'${search}') or contains(BarCode,'${search}'))`;
+  const skip = page * pageSize;
+  let filter = "InventoryItem%20eq%20'tYES'";
+
+  if (search.trim()) {
+    const s = encodeURIComponent(search.trim());
+    filter += `%20and%20(contains(ItemCode,'${s}')%20or%20contains(ItemName,'${s}')%20or%20contains(BarCode,'${s}'))`;
   }
-  
-  const response = await fetch(`${API_URL}/Items?$filter=${filter}&$top=50`, {
+
+  const url = `${API_URL}/b1s/v2/Items`
+    + `?$select=ItemCode,ItemName,Valid,BarCode,ItemBarCodeCollection`
+    + `&$filter=${filter}`
+    + `&$top=${pageSize}`
+    + `&$skip=${skip}`
+    + `&$inlinecount=allpages`;
+
+  const res = await fetch(url, {
     headers: { 'x-sap-url': sapUrl }
   });
-  
-  if (!response.ok) throw new Error('Error al cargar artículos');
-  return response.json();
+
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('Sesión expirada. Inicia sesión nuevamente.');
+    throw new Error('Error al cargar artículos');
+  }
+  return res.json();
 }
 
 // DETALLE DE ARTÍCULO
 export async function getItemByCode(itemCode) {
   const sapUrl = sessionStorage.getItem('sapUrl');
-  const response = await fetch(`${API_URL}/Items('${encodeURIComponent(itemCode)}')`, {
-    headers: { 'x-sap-url': sapUrl }
-  });
-  
-  if (!response.ok) throw new Error('Error al cargar detalle');
-  return response.json();
+  const res = await fetch(
+    `${API_URL}/b1s/v2/Items('${encodeURIComponent(itemCode)}')`,
+    { headers: { 'x-sap-url': sapUrl } }
+  );
+  if (!res.ok) throw new Error('Error al cargar detalle');
+  return res.json();
 }
 
 // AGREGAR CÓDIGO DE BARRA
 export async function addBarcode(itemCode, existingBarcodes, newBarcode, uomEntry = null) {
   const sapUrl = sessionStorage.getItem('sapUrl');
-  
+
   const updatedBarcodes = [
     ...existingBarcodes,
     { Barcode: newBarcode, ...(uomEntry ? { UoMEntry: parseInt(uomEntry) } : {}) }
   ];
-  
-  const response = await fetch(`${API_URL}/Items('${encodeURIComponent(itemCode)}')`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-sap-url': sapUrl
-    },
-    body: JSON.stringify({ ItemBarCodeCollection: updatedBarcodes })
-  });
-  
-  if (!response.ok) throw new Error('Error al guardar');
+
+  const res = await fetch(
+    `${API_URL}/b1s/v2/Items('${encodeURIComponent(itemCode)}')`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-sap-url': sapUrl
+      },
+      body: JSON.stringify({ ItemBarCodeCollection: updatedBarcodes })
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const msg = err?.error?.message?.value || '';
+    if (msg.includes('UoM') || msg.includes('unit')) {
+      throw new Error('Unidad de medida inexistente o inválida');
+    }
+    if (msg.includes('duplicate') || msg.includes('exist')) {
+      throw new Error('Este código de barra ya existe');
+    }
+    throw new Error(msg || 'Error al guardar el código de barra');
+  }
   return true;
+}
+
+// UNIDADES DE MEDIDA
+export async function getUoMs() {
+  const sapUrl = sessionStorage.getItem('sapUrl');
+  const res = await fetch(
+    `${API_URL}/b1s/v2/UnitOfMeasurements`,
+    { headers: { 'x-sap-url': sapUrl } }
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.value || [];
 }

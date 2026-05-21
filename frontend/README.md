@@ -1,16 +1,72 @@
-# React + Vite
+# ScanFlow - SAP
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Portal web para gestión de códigos de barra de artículos de inventario en SAP Business One.
 
-Currently, two official plugins are available:
+## Tecnología utilizada
+- **Frontend:** React + Vite
+- **Backend:** Node.js + Express (servidor proxy)
+- **Librería QR:** qrcode.react
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Requisitos previos
+- Node.js instalado
+- Acceso a la red donde está el SAP Business One Service Layer
 
-## React Compiler
+## Instalación
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Backend
+```bash
+cd backend
+npm install
+```
 
-## Expanding the ESLint configuration
+### Frontend
+```bash
+cd frontend
+npm install
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Ejecución
+
+### Terminal 1 - Backend
+```bash
+cd backend
+node server.js
+```
+
+### Terminal 2 - Frontend
+```bash
+cd frontend
+npm run dev
+```
+
+Abrir en el navegador: `http://localhost:5173`
+
+## Configuración
+- La URL del Service Layer está configurada en `frontend/src/api/sapApi.js`
+- El usuario ingresa sus credenciales de SAP en el login (CompanyDB, Username, Password)
+- No se requiere archivo .env
+
+## Funcionalidades implementadas
+- ✅ Login con SAP Business One (Service Layer)
+- ✅ Logout
+- ✅ Listado de artículos de inventario
+- ✅ Búsqueda por código, nombre o barcode
+- ✅ Paginación de artículos
+- ✅ Visualización de barcode principal en tabla
+- ✅ Generación de código QR por barcode
+- ✅ Detalle del artículo (código, nombre, grupo, status)
+- ✅ Ver todos los códigos de barra con su QR y UOM
+- ✅ Agregar nuevo código de barra con unidad de medida
+- ✅ Validación de campos y duplicados
+- ✅ Manejo de errores y mensajes al usuario
+
+## Endpoints utilizados
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | /b1s/v2/Login | Iniciar sesión en SAP |
+| POST | /b1s/v2/Logout | Cerrar sesión |
+| GET | /b1s/v2/Items | Listar artículos de inventario |
+| GET | /b1s/v2/Items('{ItemCode}') | Detalle de un artículo |
+| PATCH | /b1s/v2/Items('{ItemCode}') | Agregar nuevo barcode |
+
+## Estructura del proyecto
